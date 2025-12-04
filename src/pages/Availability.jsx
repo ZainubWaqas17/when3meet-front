@@ -15,6 +15,7 @@ export default function Availability() {
   const [responses, setResponses] = useState(() => JSON.parse(localStorage.getItem('responses') || '{}'))
   const [cellsActive, setCellsActive] = useState([]) // boolean[][] per day
   const [tokenClient, setTokenClient] = useState(null)
+  const [hoveredCell, setHoveredCell] = useState(null)
   const importBtnRef = useRef(null)
 
   // drag state refs (persist across events)
@@ -58,12 +59,43 @@ export default function Availability() {
     alert('Link copied to clipboard!')
   }
 
+  function getAvailabilityCount(dayIndex, slotIndex) {
+    const key = eventData?.title || 'defaultEvent'
+    const eventResponses = responses[key] || []
+    return eventResponses.filter(r => r.selected[dayIndex]?.includes(slotIndex)).length
+  }
+
+  function getAvailableNames(dayIndex, slotIndex) {
+    const key = eventData?.title || 'defaultEvent'
+    const eventResponses = responses[key] || []
+    return eventResponses
+      .filter(r => r.selected[dayIndex]?.includes(slotIndex))
+      .map(r => r.name)
+  }
+
+  function getTotalResponses() {
+    const key = eventData?.title || 'defaultEvent'
+    return (responses[key] || []).length
+  }
+
+  function getCellColor(dayIndex, slotIndex) {
+    const count = getAvailabilityCount(dayIndex, slotIndex)
+    const total = getTotalResponses()
+    if (count === 0) return 'transparent'
+    const intensity = total > 0 ? count / total : 0
+    // Improved gradient: light lavender to deep purple
+    const r = Math.round(240 - (240 - 106) * intensity)
+    const g = Math.round(220 - (220 - 27) * intensity)
+    const b = Math.round(255 - (255 - 154) * intensity)
+    return `rgb(${r}, ${g}, ${b})`
+  }
+
   function renderResponses() {
     const key = eventData?.title || 'defaultEvent'
     const eventResponses = responses[key] || []
     return (
       <>
-        <h3 id="responseHeader">Responses ({eventResponses.length}/{eventResponses.length})</h3>
+        <h3 id="responseHeader">Responses ({eventResponses.length})</h3>
         <ul className="muted" style={{ paddingLeft: 18, margin: '8px 0 0' }}>
           {eventResponses.map((r, i) => (
             <li key={i}>{r.name}</li>
@@ -262,6 +294,19 @@ export default function Availability() {
             </div>
           </div>
 
+          {hoveredCell && (() => {
+            const names = getAvailableNames(hoveredCell.dayIndex, hoveredCell.slotIndex)
+            if (names.length === 0) return null
+            return (
+              <div className="hover-tooltip">
+                <strong>{names.length} available:</strong>
+                <ul>
+                  {names.map((name, i) => <li key={i}>{name}</li>)}
+                </ul>
+              </div>
+            )
+          })()}
+
           <div className="schedule">
             {/* Time labels */}
             <div className="time-labels">
@@ -302,20 +347,28 @@ export default function Availability() {
                       onMouseUp={handleMouseUp}
                       onMouseLeave={handleMouseUp}
                     >
-                      {Array.from({ length: totalCells }, (_, slotIndex) => (
-                        <div
-                          key={slotIndex}
-                          className={`cell ${
-                            cellsActive[dayIndex]?.[slotIndex] ? 'active' : ''
-                          }`}
-                          onMouseDown={(e) =>
-                            handleCellMouseDown(dayIndex, slotIndex, e)
-                          }
-                          onMouseEnter={() =>
-                            handleCellMouseEnter(dayIndex, slotIndex)
-                          }
-                        />
-                      ))}
+                      {Array.from({ length: totalCells }, (_, slotIndex) => {
+                        const isCurrentUserActive = cellsActive[dayIndex]?.[slotIndex]
+                        return (
+                          <div
+                            key={slotIndex}
+                            className={`cell ${isCurrentUserActive ? 'active' : ''}`}
+                            style={{
+                              backgroundColor: isCurrentUserActive 
+                                ? '#E3C5E3' 
+                                : getCellColor(dayIndex, slotIndex)
+                            }}
+                            onMouseDown={(e) =>
+                              handleCellMouseDown(dayIndex, slotIndex, e)
+                            }
+                            onMouseEnter={() => {
+                              handleCellMouseEnter(dayIndex, slotIndex)
+                              setHoveredCell({ dayIndex, slotIndex })
+                            }}
+                            onMouseLeave={() => setHoveredCell(null)}
+                          />
+                        )
+                      })}
                     </div>
                   </div>
                 )

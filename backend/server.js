@@ -1,25 +1,28 @@
 const { OAuth2Client } = require("google-auth-library");
-const { MongoClient, ObjectId } = require("mongodb");
-const dotenv = require("dotenv");
+const mongoose = require('mongoose');
+const dotenv = require("dotenv").config();
 const app = require("./app");
 
-/* global process */
-dotenv.config({path:"./.env"});
 
-
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 50001;
 
 // Google OAuth client
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // MongoDB connection
-let db;
-MongoClient.connect(process.env.MONGODB_URI)
-  .then((client) => {
-    console.log("Connected to MongoDB");
-    db = client.db("when3meet");
-  })
-  .catch((error) => console.error("MongoDB connection error:", error));
+const dbName = 'when3meet'
+mongoose.connect(process.env.MONGODB_URI, {
+  dbName: dbName, // Explicitly specify the database name
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log(`Connected to MongoDB; Database: ${dbName}`);
+})
+.catch((error) => {
+  console.error("MongoDB connection error:", error);
+  process.exit(1);
+});
 
 // // Middleware
 // app.use(cors());
@@ -76,6 +79,7 @@ MongoClient.connect(process.env.MONGODB_URI)
 // });
 
 // Google OAuth login endpoint
+
 app.post("/auth/google", async (req, res) => {
   try {
     const { id_token } = req.body;

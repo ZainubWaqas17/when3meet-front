@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { OAuth2Client } from 'google-auth-library';
 import { MongoClient } from 'mongodb';
+import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -24,9 +25,9 @@ app.use(cors());
 app.use(express.json());
 
 const testUser = {
-  email: "ggoel@test.com",
+  email: "xingyu@test.com",
   password: "test123",
-  userName: "ggoel"
+  userName: "xingyu"
 };
 
 app.post('/api/users/login', async (req, res) => {
@@ -49,19 +50,39 @@ app.post('/api/users/login', async (req, res) => {
         { upsert: true }
       );
       
-      res.json({
+      return res.json({
         success: true,
         user: {
           email: testUser.email,
           userName: testUser.userName
         }
       });
-    } else {
-      res.status(401).json({
+    }
+    
+    const user = await database.collection('users').findOne({ email });
+    
+    if (!user) {
+      return res.status(401).json({
         success: false,
-        message: 'Invalid email or password'
+        message: 'Invalid credentials'
       });
     }
+    
+    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    
+    if (!isPasswordCorrect) {
+      return res.status(401).json({
+        success: false,
+        message: 'Incorrect password'
+      });
+    }
+    
+    delete user.password;
+    
+    res.json({
+      success: true,
+      user
+    });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({
@@ -215,6 +236,42 @@ app.get('/api/users', async (req, res) => {
   } catch (error) {
     console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Failed to fetch users' });
+  }
+});
+
+app.post('/api/users/register', async (req, res) => {
+  try {
+    const database = await connectDB();
+    const { userName, email, password } = req.body;
+    
+    const existingUser = await database.collection('users').findOne({ email });
+    
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User already exists'
+      });
+    }
+    
+    const hashedPassword = await bcrypt.hash(password, 10);
+    
+    await database.collection('users').insertOne({
+      userName,
+      email,
+      password: hashedPassword,
+      createdAt: new Date()
+    });
+    
+    res.status(201).json({
+      success: true,
+      user: { userName, email }
+    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error creating user'
+    });
   }
 });
 

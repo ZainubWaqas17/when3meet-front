@@ -80,7 +80,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 
 // Google OAuth login endpoint
 
-app.post("/auth/google", async (req, res) => {
+app.post("/api/auth/google", async (req, res) => {
   try {
     const { id_token } = req.body;
 
@@ -92,6 +92,7 @@ app.post("/auth/google", async (req, res) => {
     const payload = ticket.getPayload();
     const { email, name, picture, sub: googleId } = payload;
 
+    const db = mongoose.connection.db;
     await db.collection("users").updateOne(
       { email: email },
       {

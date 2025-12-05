@@ -26,6 +26,8 @@ export default function Login() {
       return;
     }
 
+    console.log(API_BASE_URL)
+
     try {
       const res = await fetch(`${API_BASE_URL}/users/login`, {
         method: "POST",

@@ -6,15 +6,15 @@ let isConnected = false;
 async function connectDB() {
   if (isConnected) return;
   
-  await mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
-  
-  isConnected = true;
+  try {
+    await mongoose.connect(process.env.MONGODB_URI);
+    isConnected = true;
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+  }
 }
 
 module.exports = async (req, res) => {
   await connectDB();
-  return app(req, res);
+  app(req, res);
 };

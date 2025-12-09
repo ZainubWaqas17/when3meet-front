@@ -51,7 +51,21 @@ button:hover {
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: none;
+}
+
+* {
+  outline: none;
+}
+
+*:focus {
+  outline: none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
 }
 
 @media (prefers-color-scheme: light) {

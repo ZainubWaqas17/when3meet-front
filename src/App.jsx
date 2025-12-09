@@ -16,6 +16,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/home" element={<Home />} />
       <Route path="/availability" element={<Availability />} />
+      <Route path="/availability/:eventId" element={<Availability />} />
       <Route path="/create" element={<CreateEvent />} />
       <Route path="/event/:eventId" element={<EventView />} />
       <Route path="/event/:eventId/summary" element={<SaveMeeting />} />

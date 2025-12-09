@@ -15,7 +15,13 @@ export default function Home() {
 
   async function fetchEvents() {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/events`)
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (!user) {
+        navigate('/login')
+        return
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/events?creator=${user._id || user.email}`)
       const data = await res.json()
 
       if (res.ok && Array.isArray(data)) {
@@ -29,8 +35,12 @@ export default function Home() {
     }
   }
 
-  const view = (eventId) => {
-    navigate(`/event/${eventId}`)
+  const view = (eventId, adminToken) => {
+    if (adminToken) {
+      navigate(`/availability/${eventId}?admin=${adminToken}`)
+    } else {
+      navigate(`/availability/${eventId}`)
+    }
   }
 
   return (
@@ -58,7 +68,7 @@ export default function Home() {
             <div className="meeting-card" key={e._id}>
               <h3 className="meeting-title">{e.title || 'Untitled'}</h3>
               <p className="meeting-dates">{e.dateRange || 'No dates'}</p>
-              <button className="view-btn" onClick={() => view(e._id)}>View</button>
+              <button className="view-btn" onClick={() => view(e._id, e.adminToken)}>View</button>
             </div>
           ))}
         </section>

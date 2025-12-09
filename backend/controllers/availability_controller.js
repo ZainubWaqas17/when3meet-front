@@ -14,23 +14,22 @@ exports.upsertAvailability = async (req, res) => {
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Convert slots to ISO strings if needed
-    const isoSlots = slots.map(s => typeof s === 'string' ? s : new Date(s).toISOString());
-
+    // Use findOneAndUpdate with upsert to create or update
     const availability = await Availability.findOneAndUpdate(
       { eventId, userId },
-      { $set: { slots: isoSlots, timeZone } },
-      { upsert: true, new: true, runValidators: true }
-    ).populate('userId', 'userName email');
+      { eventId, userId, slots, timeZone },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    // Populate after update
+    await availability.populate('userId', 'userName email');
 
     res.status(200).json({
       success: true,
       availability
     });
   } catch (err) {
-    if (err.code === 11000) {
-      return res.status(409).json({ error: 'Availability already exists for this user and event' });
-    }
+    console.error('Upsert availability error:', err);
     res.status(400).json({ error: err.message });
   }
 };

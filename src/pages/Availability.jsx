@@ -15,7 +15,7 @@ export default function Availability() {
   const [eventData, setEventData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [responses, setResponses] = useState(() => JSON.parse(localStorage.getItem('responses') || '{}'))
+  const [responses, setResponses] = useState({})
   const [cellsActive, setCellsActive] = useState([]) // boolean[][] per day
   const [tokenClient, setTokenClient] = useState(null)
   const [hoveredCell, setHoveredCell] = useState(null)
@@ -35,29 +35,27 @@ export default function Availability() {
         try {
           const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
           const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`)
-          const data = await res.json()
-          if (data.meeting) {
-            setEventData(data.meeting)
+          const event = await res.json()
+          if (event && event._id) {
+            setEventData(event)
             const params = new URLSearchParams(window.location.search)
             const adminToken = params.get('admin')
-            if (adminToken && adminToken === data.meeting.adminToken) {
+            if (adminToken && adminToken === event.adminToken) {
               setIsAdmin(true)
             }
             
-            // Load existing availability responses
+            // Load existing availability responses from database
             try {
               const availRes = await fetch(`${API_BASE_URL}/api/events/${eventId}/availabilities`)
               const availData = await availRes.json()
-              if (availData.availabilities) {
-                const key = data.meeting.title
+              console.log('Loaded availabilities:', availData)
+              if (availData.success && availData.availabilities) {
+                const key = event.title
                 const formattedResponses = availData.availabilities.map(resp => ({
-                  name: resp.userName,
-                  selected: resp.selectedSlots || []
+                  name: resp.userId?.userName || 'Anonymous',
+                  selected: resp.slots || []
                 }))
-                const newResponses = { ...responses }
-                newResponses[key] = formattedResponses
-                setResponses(newResponses)
-                localStorage.setItem('responses', JSON.stringify(newResponses))
+                setResponses({ [key]: formattedResponses })
               }
             } catch (err) {
               console.error('Error loading availability:', err)
@@ -125,7 +123,16 @@ export default function Availability() {
   function getAvailabilityCount(dayIndex, slotIndex) {
     const key = eventData?.title || 'defaultEvent'
     const eventResponses = responses[key] || []
-    return eventResponses.filter(r => r.selected[dayIndex]?.includes(slotIndex)).length
+    // Count how many users have this slot selected
+    let count = 0
+    eventResponses.forEach(resp => {
+      if (resp.selected && resp.selected[dayIndex]) {
+        if (Array.isArray(resp.selected[dayIndex]) && resp.selected[dayIndex].includes(slotIndex)) {
+          count++
+        }
+      }
+    })
+    return count
   }
 
   function getAvailableNames(dayIndex, slotIndex) {
@@ -146,10 +153,10 @@ export default function Availability() {
     const total = getTotalResponses()
     if (count === 0) return 'transparent'
     const intensity = total > 0 ? count / total : 0
-    // Improved gradient: light lavender to deep purple
-    const r = Math.round(240 - (240 - 106) * intensity)
-    const g = Math.round(220 - (220 - 27) * intensity)
-    const b = Math.round(255 - (255 - 154) * intensity)
+    // Lighter purple palette: lavender to medium purple (darker = more people)
+    const r = Math.round(240 - (240 - 164) * intensity)
+    const g = Math.round(230 - (230 - 107) * intensity)
+    const b = Math.round(255 - (255 - 174) * intensity)
     return `rgb(${r}, ${g}, ${b})`
   }
 
@@ -185,40 +192,80 @@ export default function Availability() {
       return
     }
 
-    const name = user.userName || prompt('Enter your name')
-    if (!name) return
-
-    const key = eventData?.title || 'defaultEvent'
-    const newResponses = { ...responses }
-    newResponses[key] = newResponses[key] || []
-    newResponses[key].push({
-      name,
-      selected: cellsActive.map((dayArr) => dayArr.reduce((acc, on, i) => (on ? [...acc, i] : acc), []))
-    })
-    setResponses(newResponses)
-    localStorage.setItem('responses', JSON.stringify(newResponses))
-
-    if (eventData._id) {
-      try {
-        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
-        await fetch(`${API_BASE_URL}/api/events/${eventData._id}/availabilities`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: user.email,
-            userName: name,
-            selectedSlots: cellsActive.map((dayArr) => dayArr.reduce((acc, on, i) => (on ? [...acc, i] : acc), []))
-          })
-        })
-      } catch (err) {
-        console.error(err)
-      }
+    // Check if user has any selected slots
+    const hasSelection = cellsActive.some(dayArr => dayArr.some(slot => slot))
+    if (!hasSelection) {
+      alert('Please select your availability first')
+      return
     }
 
-    setCellsActive(cellsActive.map((arr) => arr.map(() => false)))
+    const selectedSlots = cellsActive.map((dayArr) => dayArr.reduce((acc, on, i) => (on ? [...acc, i] : acc), []))
+
+    if (!eventData._id) {
+      alert('Event ID not found')
+      return
+    }
+
+    if (!user._id) {
+      alert('User ID not found. Please log in again.')
+      navigate('/login')
+      return
+    }
+
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+      console.log('Submitting availability:', { userId: user._id, slots: selectedSlots })
+      
+      const submitRes = await fetch(`${API_BASE_URL}/api/events/${eventData._id}/availabilities`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user._id,
+          slots: selectedSlots
+        })
+      })
+      
+      const submitData = await submitRes.json()
+      console.log('Submit response:', submitData)
+      
+      if (!submitRes.ok) {
+        alert(`Failed to submit: ${submitData.error || 'Unknown error'}`)
+        return
+      }
+      
+      // Reload availabilities from database
+      const availRes = await fetch(`${API_BASE_URL}/api/events/${eventData._id}/availabilities`)
+      const availData = await availRes.json()
+      console.log('Reloaded availabilities:', availData)
+      
+      if (availData.success && availData.availabilities) {
+        const key = eventData.title
+        const formattedResponses = availData.availabilities.map(resp => ({
+          name: resp.userId?.userName || 'Anonymous',
+          selected: resp.slots || []
+        }))
+        setResponses({ [key]: formattedResponses })
+      }
+      
+      alert('Availability submitted successfully!')
+    } catch (err) {
+      console.error('Error submitting availability:', err)
+      alert('Failed to submit availability')
+    }
+
+
   }
 
   async function handleImport() {
+    // Check if user is logged in
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) {
+      localStorage.setItem('returnTo', window.location.pathname + window.location.search)
+      alert('Please login to import your availability')
+      navigate('/login')
+      return
+    }
+    
     if (!tokenClient) return
     const btn = importBtnRef.current
     const original = btn.innerHTML
@@ -313,6 +360,16 @@ export default function Availability() {
   // drag handlers
   function handleCellMouseDown(dayIndex, slotIndex, e) {
     e.preventDefault() // avoid text selection while dragging
+    
+    // Check if user is logged in before allowing selection
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) {
+      localStorage.setItem('returnTo', window.location.pathname + window.location.search)
+      alert('Please login to add your availability')
+      navigate('/login')
+      return
+    }
+    
     const willAdd = !cellsActive[dayIndex]?.[slotIndex]
     draggingRef.current = true
     addModeRef.current = willAdd
@@ -368,11 +425,6 @@ export default function Availability() {
               <button className="btn" onClick={copyLink}>
                 Copy link
               </button>
-              {isAdmin && (
-                <button className="btn" onClick={copyAdminLink}>
-                  Copy Admin Link
-                </button>
-              )}
               <button className="btn primary" onClick={addAvailability}>
                 Add availability
               </button>

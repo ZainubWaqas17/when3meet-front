@@ -25,6 +25,7 @@ const Event = new Schema(
     ],
     // record users who have filled availability
     determinedTime: Date,
+    adminToken: { type: String, required: true }, // Admin token for event creator
     isPublic: { type: Boolean, default: true }, // Allow public access via link
     schemaVersion: { type: Number, default: 1 },
     // in case we change structure of the collection, allows for easy migrations

@@ -22,6 +22,9 @@ exports.createEvent = async (req, res) => {
       return res.status(400).json({ error: 'window.start and window.end are required' });
     }
 
+    // Generate secure admin token
+    const adminToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
     const event = await Event.create({
       title,
       description,
@@ -34,6 +37,7 @@ exports.createEvent = async (req, res) => {
       month,
       year,
       dateRange,
+      adminToken,
       isPublic: true
     });
 

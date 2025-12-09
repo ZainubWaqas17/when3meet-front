@@ -307,6 +307,12 @@ export default function EventView() {
 
   function handleCellMouseDown(dayIndex, slotIndex, e) {
     e.preventDefault()
+    if (!user) {
+      alert('Please login or sign up to add your availability')
+      localStorage.setItem('redirectAfterLogin', `/event/${eventId}`)
+      navigate('/login')
+      return
+    }
     const willAdd = !cellsActive[dayIndex]?.[slotIndex]
     draggingRef.current = true
     addModeRef.current = willAdd
@@ -367,7 +373,7 @@ export default function EventView() {
                 Copy link
               </button>
               <button className="btn primary" onClick={handleAddAvailability}>
-                {user ? 'Add availability' : 'Login to add availability'}
+                {user ? 'Submit Availability' : 'Login to Submit'}
               </button>
               <button
                 className="btn primary"

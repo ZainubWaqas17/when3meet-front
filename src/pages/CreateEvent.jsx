@@ -130,8 +130,9 @@ export default function CreateEvent() {
         return
       }
 
-      // Navigate to the shareable event page
-      navigate(`/event/${data.event._id}`)
+      const eventId = data.event._id
+      const adminToken = data.event.adminToken
+      navigate(`/availability/${eventId}?admin=${adminToken}`)
     } catch (err) {
       console.error(err)
       alert('Failed to create event. Please try again.')

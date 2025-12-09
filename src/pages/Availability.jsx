@@ -1,6 +1,6 @@
 // src/pages/Availability.jsx
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import '../styles/availability.css'
 import { loadGapiClient, loadGoogleIdentity } from '../lib/google'
 
@@ -11,7 +11,10 @@ const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'
 
 export default function Availability() {
   const navigate = useNavigate()
-  const eventData = useMemo(() => JSON.parse(localStorage.getItem('eventData') || 'null'), [])
+  const { eventId } = useParams()
+  const [eventData, setEventData] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [responses, setResponses] = useState(() => JSON.parse(localStorage.getItem('responses') || '{}'))
   const [cellsActive, setCellsActive] = useState([]) // boolean[][] per day
   const [tokenClient, setTokenClient] = useState(null)
@@ -27,8 +30,57 @@ export default function Availability() {
   const totalCells = (endH - startH) * 4 // 15-min slots
 
   useEffect(() => {
+    async function loadEvent() {
+      if (eventId) {
+        try {
+          const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+          const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`)
+          const data = await res.json()
+          if (data.meeting) {
+            setEventData(data.meeting)
+            const params = new URLSearchParams(window.location.search)
+            const adminToken = params.get('admin')
+            if (adminToken && adminToken === data.meeting.adminToken) {
+              setIsAdmin(true)
+            }
+            
+            // Load existing availability responses
+            try {
+              const availRes = await fetch(`${API_BASE_URL}/api/events/${eventId}/availabilities`)
+              const availData = await availRes.json()
+              if (availData.availabilities) {
+                const key = data.meeting.title
+                const formattedResponses = availData.availabilities.map(resp => ({
+                  name: resp.userName,
+                  selected: resp.selectedSlots || []
+                }))
+                const newResponses = { ...responses }
+                newResponses[key] = formattedResponses
+                setResponses(newResponses)
+                localStorage.setItem('responses', JSON.stringify(newResponses))
+              }
+            } catch (err) {
+              console.error('Error loading availability:', err)
+            }
+          }
+        } catch (err) {
+          console.error('Error loading event:', err)
+          if (err.message?.includes('404')) {
+            alert('Event not found. Please check the link.')
+            navigate('/home')
+          }
+        }
+      } else {
+        const stored = JSON.parse(localStorage.getItem('eventData') || 'null')
+        setEventData(stored)
+      }
+      setLoading(false)
+    }
+    loadEvent()
+  }, [eventId])
+
+  useEffect(() => {
     if (!eventData) return
-    // init empty grid per day
     setCellsActive(
       Array(eventData.selectedDays.length)
         .fill(0)
@@ -55,8 +107,19 @@ export default function Availability() {
   }, [])
 
   function copyLink() {
-    navigator.clipboard.writeText(window.location.href)
-    alert('Link copied to clipboard!')
+    const participantLink = eventData._id ? `${window.location.origin}/availability/${eventData._id}` : window.location.href
+    navigator.clipboard.writeText(participantLink)
+    alert('Participant link copied! Share this with others.')
+  }
+
+  function copyAdminLink() {
+    const params = new URLSearchParams(window.location.search)
+    const adminToken = params.get('admin')
+    if (adminToken && eventData._id) {
+      const adminLink = `${window.location.origin}/availability/${eventData._id}?admin=${adminToken}`
+      navigator.clipboard.writeText(adminLink)
+      alert('Admin link copied! Keep this private.')
+    }
   }
 
   function getAvailabilityCount(dayIndex, slotIndex) {
@@ -113,10 +176,18 @@ export default function Availability() {
     })
   }
 
-  function addAvailability() {
-    const name = prompt('Enter your name')
+  async function addAvailability() {
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) {
+      localStorage.setItem('returnTo', window.location.pathname + window.location.search)
+      alert('Please login to add your availability')
+      navigate('/login')
+      return
+    }
+
+    const name = user.userName || prompt('Enter your name')
     if (!name) return
-    // Store *per day* selections (slot indices 0..totalCells-1)
+
     const key = eventData?.title || 'defaultEvent'
     const newResponses = { ...responses }
     newResponses[key] = newResponses[key] || []
@@ -126,7 +197,24 @@ export default function Availability() {
     })
     setResponses(newResponses)
     localStorage.setItem('responses', JSON.stringify(newResponses))
-    // Clear after save
+
+    if (eventData._id) {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+        await fetch(`${API_BASE_URL}/api/events/${eventData._id}/availabilities`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userEmail: user.email,
+            userName: name,
+            selectedSlots: cellsActive.map((dayArr) => dayArr.reduce((acc, on, i) => (on ? [...acc, i] : acc), []))
+          })
+        })
+      } catch (err) {
+        console.error(err)
+      }
+    }
+
     setCellsActive(cellsActive.map((arr) => arr.map(() => false)))
   }
 
@@ -280,6 +368,11 @@ export default function Availability() {
               <button className="btn" onClick={copyLink}>
                 Copy link
               </button>
+              {isAdmin && (
+                <button className="btn" onClick={copyAdminLink}>
+                  Copy Admin Link
+                </button>
+              )}
               <button className="btn primary" onClick={addAvailability}>
                 Add availability
               </button>

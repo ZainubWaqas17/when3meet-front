@@ -2,24 +2,41 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/home.css'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+
 export default function Home() {
   const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
 
   useEffect(() => {
-    const stored = JSON.parse(localStorage.getItem('savedEvents') || '[]')
-    // Sort meetings by date (near future to far future)
-    const sortedEvents = stored.sort((a, b) => {
-      const dateA = new Date(a.year, a.month, Math.min(...a.selectedDays))
-      const dateB = new Date(b.year, b.month, Math.min(...b.selectedDays))
-      return dateA - dateB
-    })
-    setEvents(sortedEvents)
+    fetchEvents()
   }, [])
 
-  const view = (e) => {
-    localStorage.setItem('eventData', JSON.stringify(e))
-    navigate('/availability')
+  async function fetchEvents() {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || 'null')
+      if (!user) {
+        setLoading(false)
+        return
+      }
+
+      const res = await fetch(`${API_BASE_URL}/api/events?creator=${user._id}`)
+      const data = await res.json()
+
+      if (res.ok && Array.isArray(data)) {
+        const sortedEvents = data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        setEvents(sortedEvents)
+      }
+      setLoading(false)
+    } catch (err) {
+      console.error(err)
+      setLoading(false)
+    }
+  }
+
+  const view = (eventId) => {
+    navigate(`/event/${eventId}`)
   }
 
   return (
@@ -41,16 +58,18 @@ export default function Home() {
         </button>
 
         <section className="meetings-container">
-          {events.map((e, i) => (
-            <div className="meeting-card" key={i}>
+          {loading ? (
+            <p className="empty-state">Loading events...</p>
+          ) : events.map((e) => (
+            <div className="meeting-card" key={e._id}>
               <h3 className="meeting-title">{e.title || 'Untitled'}</h3>
               <p className="meeting-dates">{e.dateRange || 'No dates'}</p>
-              <button className="view-btn" onClick={() => view(e)}>View</button>
+              <button className="view-btn" onClick={() => view(e._id)}>View</button>
             </div>
           ))}
         </section>
 
-        {events.length === 0 && <p className="empty-state">No meetings yet.</p>}
+        {!loading && events.length === 0 && <p className="empty-state">No meetings yet.</p>}
       </div>
     </div>
   )

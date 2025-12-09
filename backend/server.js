@@ -78,54 +78,7 @@ mongoose.connect(process.env.MONGODB_URI, {
 //     }
 // });
 
-// Google OAuth login endpoint
-
-app.post("/api/auth/google", async (req, res) => {
-  try {
-    const { id_token } = req.body;
-
-    const ticket = await client.verifyIdToken({
-      idToken: id_token,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
-
-    const payload = ticket.getPayload();
-    const { email, name, picture, sub: googleId } = payload;
-
-    const db = mongoose.connection.db;
-    await db.collection("users").updateOne(
-      { email: email },
-      {
-        $set: {
-          email: email,
-          userName: name,
-          picture: picture,
-          googleId: googleId,
-          loginMethod: "google",
-          lastLogin: new Date(),
-        },
-      },
-      { upsert: true }
-    );
-
-    console.log(`Google user ${email} logged in and stored in database`);
-
-    res.json({
-      success: true,
-      user: {
-        email,
-        userName: name,
-        picture,
-      },
-    });
-  } catch (error) {
-    console.error("Google auth error:", error);
-    res.status(401).json({
-      success: false,
-      message: "Invalid Google token",
-    });
-  }
-});
+// Google OAuth is now handled in user_routes via /api/users/google
 
 // // Save availability endpoint
 // app.post('/availability', async (req, res) => {

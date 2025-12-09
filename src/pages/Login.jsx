@@ -61,10 +61,16 @@ export default function Login() {
   // Google login
   async function handleCredentialResponse(response) {
     try {
-      const res = await fetch(`${API_BASE_URL}/api/auth/google`, {
+      const decoded = JSON.parse(atob(response.credential.split('.')[1]));
+      
+      const res = await fetch(`${API_BASE_URL}/api/users/google`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id_token: response.credential }),
+        body: JSON.stringify({ 
+          email: decoded.email,
+          userName: decoded.name,
+          picture: decoded.picture
+        }),
       });
 
       const data = await res.json();

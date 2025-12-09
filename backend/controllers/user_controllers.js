@@ -117,3 +117,35 @@ exports.getUserById = async (req, res) => {
     });
   }
 };
+
+exports.googleLogin = async (req, res) => {
+  try {
+    const { email, userName, picture } = req.body;
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        userName,
+        email,
+        password: Math.random().toString(36),
+        picture,
+      });
+    }
+
+    const userResponse = user.toObject();
+    delete userResponse.password;
+
+    res.status(200).json({
+      success: true,
+      message: "Google login successful",
+      user: userResponse,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error with Google login",
+      error: error.message,
+    });
+  }
+};

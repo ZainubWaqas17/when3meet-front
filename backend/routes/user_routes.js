@@ -3,6 +3,7 @@ const userCtrl = require("../controllers/user_controllers");
 
 router.post("/register", userCtrl.createUser); // POST /users/register
 router.post("/login", userCtrl.loginUser);     // POST /users/login
+router.post("/google", userCtrl.googleLogin);  // POST /users/google
 router.get("/:id", userCtrl.getUserById);      // GET /users/:id
 
 router.get("/", (_, res) => {                // GET /users/

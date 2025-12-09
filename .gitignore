@@ -172,3 +172,4 @@ vite.config.ts.timestamp-*
 .DS_Store
 >>>>>>> dev-backend
 .vercel
+.env*.local

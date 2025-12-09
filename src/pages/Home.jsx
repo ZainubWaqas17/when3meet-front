@@ -15,13 +15,7 @@ export default function Home() {
 
   async function fetchEvents() {
     try {
-      const user = JSON.parse(localStorage.getItem('user') || 'null')
-      if (!user) {
-        setLoading(false)
-        return
-      }
-
-      const res = await fetch(`${API_BASE_URL}/api/events?creator=${user._id}`)
+      const res = await fetch(`${API_BASE_URL}/api/events`)
       const data = await res.json()
 
       if (res.ok && Array.isArray(data)) {

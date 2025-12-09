@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/login.css";
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:50001";
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:50001');
 
 export default function Register() {
   const navigate = useNavigate();

@@ -6,7 +6,7 @@ import { loadGoogleIdentity } from "../lib/google";
 
 const GOOGLE_CLIENT_ID =
   "1001839997214-8n0b2cs605n52ltdri13ccgqnct2furc.apps.googleusercontent.com";
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:50001";
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:50001');
 
 export default function Login() {
   const navigate = useNavigate();

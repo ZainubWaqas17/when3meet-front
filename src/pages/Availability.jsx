@@ -33,7 +33,7 @@ export default function Availability() {
     async function loadEvent() {
       if (eventId) {
         try {
-          const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+          const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:50001')
           const res = await fetch(`${API_BASE_URL}/api/events/${eventId}`)
           const event = await res.json()
           if (event && event._id) {
@@ -213,7 +213,7 @@ export default function Availability() {
     }
 
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+      const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.MODE === 'production' ? '' : 'http://localhost:50001')
       console.log('Submitting availability:', { userId: user._id, slots: selectedSlots })
       
       const submitRes = await fetch(`${API_BASE_URL}/api/events/${eventData._id}/availabilities`, {

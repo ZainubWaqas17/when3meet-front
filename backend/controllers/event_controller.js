@@ -4,7 +4,19 @@ const Availability = require('../models/availability_model');
 
 exports.createEvent = async (req, res) => {
   try {
-    const { title, description, creator, window, participants = [] } = req.body;
+    const { 
+      title, 
+      description, 
+      creator, 
+      window, 
+      participants = [],
+      startTime,
+      endTime,
+      selectedDays,
+      month,
+      year,
+      dateRange
+    } = req.body;
 
     if (!window?.start || !window?.end) {
       return res.status(400).json({ error: 'window.start and window.end are required' });
@@ -16,9 +28,20 @@ exports.createEvent = async (req, res) => {
       creator,
       window,
       participants,
+      startTime,
+      endTime,
+      selectedDays,
+      month,
+      year,
+      dateRange,
+      isPublic: true
     });
 
-    res.status(201).json(event);
+    res.status(201).json({
+      success: true,
+      event,
+      shareableLink: `/event/${event._id}`
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -39,11 +62,44 @@ exports.listEvents = async (req, res) => {
 
 exports.getEvent = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.eventId);
+    const event = await Event.findById(req.params.eventId)
+      .populate('creator', 'userName email');
     if (!event) return res.status(404).json({ error: 'Event not found' });
     res.json(event);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+// Public endpoint - no auth required
+exports.getPublicEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId)
+      .populate('creator', 'userName email');
+    
+    if (!event) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Event not found' 
+      });
+    }
+
+    if (!event.isPublic) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'This event is private' 
+      });
+    }
+
+    res.json({
+      success: true,
+      event
+    });
+  } catch (err) {
+    res.status(400).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 };
 

@@ -3,6 +3,8 @@ import { useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../styles/create-event.css'
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:50001'
+
 export default function CreateEvent() {
   const [title, setTitle] = useState('')
   const [start, setStart] = useState('')
@@ -65,12 +67,19 @@ export default function CreateEvent() {
     setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
   }
 
-  function create() {
+  async function create() {
     if (!title || !start || !end || !selected.length) return alert('Missing fields.')
 
     const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/
     if (!timeRegex.test(start) || !timeRegex.test(end)) {
       alert('Enter 24h times like 09:00 / 17:30')
+      return
+    }
+
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (!user) {
+      alert('Please login to create an event')
+      navigate('/login')
       return
     }
 
@@ -88,22 +97,45 @@ export default function CreateEvent() {
     })
     const dateRange = selected.length > 1 ? `${formattedStart} – ${formattedEnd}` : formattedStart
 
-    const event = {
+    // Set window start/end times
+    first.setHours(parseInt(start.split(':')[0]), parseInt(start.split(':')[1]), 0, 0)
+    last.setHours(parseInt(end.split(':')[0]), parseInt(end.split(':')[1]), 0, 0)
+
+    const eventData = {
       title,
+      creator: user._id,
+      window: {
+        start: first.toISOString(),
+        end: last.toISOString()
+      },
       startTime: start,
       endTime: end,
       selectedDays: selected,
       month,
       year,
-      startDate: formattedStart,
-      endDate: formattedEnd,
       dateRange
     }
 
-    localStorage.setItem('eventData', JSON.stringify(event))
-    const all = JSON.parse(localStorage.getItem('savedEvents') || '[]')
-    localStorage.setItem('savedEvents', JSON.stringify([event, ...all]))
-    navigate('/availability')
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/events`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eventData)
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Failed to create event')
+        return
+      }
+
+      // Navigate to the shareable event page
+      navigate(`/event/${data.event._id}`)
+    } catch (err) {
+      console.error(err)
+      alert('Failed to create event. Please try again.')
+    }
   }
 
   // drag handlers for dates

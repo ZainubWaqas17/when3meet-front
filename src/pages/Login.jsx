@@ -44,7 +44,14 @@ export default function Login() {
 
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("isLoggedIn", "true");
-      navigate("/home");
+      
+      const redirectUrl = localStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectUrl);
+      } else {
+        navigate("/home");
+      }
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");
@@ -69,7 +76,14 @@ export default function Login() {
 
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("isLoggedIn", "true");
-      navigate("/home");
+      
+      const redirectUrl = localStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectUrl);
+      } else {
+        navigate("/home");
+      }
     } catch (err) {
       console.error(err);
       setError("Google login error. Please try again.");

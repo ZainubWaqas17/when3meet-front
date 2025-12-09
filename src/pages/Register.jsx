@@ -29,7 +29,7 @@ export default function Register() {
     }
 
     try {
-      const res = await fetch(`${API_BASE_URL}/users/register`, {
+      const res = await fetch(`${API_BASE_URL}/api/users/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userName, email, password }),
@@ -45,7 +45,14 @@ export default function Register() {
       // Optionally log them in right away:
       localStorage.setItem("user", JSON.stringify(data.user));
       localStorage.setItem("isLoggedIn", "true");
-      navigate("/home");
+      
+      const redirectUrl = localStorage.getItem('redirectAfterLogin');
+      if (redirectUrl) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectUrl);
+      } else {
+        navigate("/home");
+      }
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");

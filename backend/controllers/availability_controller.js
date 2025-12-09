@@ -5,26 +5,31 @@ const Availability = require('../models/availability_model');
 exports.upsertAvailability = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { email, slots = [], note } = req.body;
+    const { userId, slots = [], timeZone } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Validate all slots within event window
-    const ok = slots.every(s => new Date(s.start) >= event.window.start && new Date(s.end) <= event.window.end && new Date(s.start) < new Date(s.end));
-    if (!ok) return res.status(400).json({ error: 'All availability slots must be within the event window and start < end' });
+    // Convert slots to ISO strings if needed
+    const isoSlots = slots.map(s => typeof s === 'string' ? s : new Date(s).toISOString());
 
     const availability = await Availability.findOneAndUpdate(
-      { eventId, email: email.toLowerCase().trim() },
-      { $set: { slots, note } },
+      { eventId, userId },
+      { $set: { slots: isoSlots, timeZone } },
       { upsert: true, new: true, runValidators: true }
-    );
+    ).populate('userId', 'userName email');
 
-    res.status(200).json(availability);
+    res.status(200).json({
+      success: true,
+      availability
+    });
   } catch (err) {
-    // Handle unique index errors nicely
     if (err.code === 11000) {
-      return res.status(409).json({ error: 'Availability already exists for this email and event' });
+      return res.status(409).json({ error: 'Availability already exists for this user and event' });
     }
     res.status(400).json({ error: err.message });
   }
@@ -33,8 +38,13 @@ exports.upsertAvailability = async (req, res) => {
 exports.listAvailabilitiesForEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const rows = await Availability.find({ eventId }).sort({ createdAt: -1 });
-    res.json(rows);
+    const rows = await Availability.find({ eventId })
+      .populate('userId', 'userName email')
+      .sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      availabilities: rows
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

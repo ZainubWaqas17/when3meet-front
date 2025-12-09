@@ -10,6 +10,13 @@ const Event = new Schema(
       start: { type: Date, required: true },
       end: { type: Date, required: true },
     },
+    // Frontend event data (for compatibility with existing CreateEvent flow)
+    startTime: String, // e.g., "09:00"
+    endTime: String,   // e.g., "17:00"
+    selectedDays: [Number], // day numbers in month
+    month: Number,
+    year: Number,
+    dateRange: String,
     // time range
     participants: [
       {
@@ -18,6 +25,7 @@ const Event = new Schema(
     ],
     // record users who have filled availability
     determinedTime: Date,
+    isPublic: { type: Boolean, default: true }, // Allow public access via link
     schemaVersion: { type: Number, default: 1 },
     // in case we change structure of the collection, allows for easy migrations
   },

@@ -1,16 +1,29 @@
-require("dotenv").config();
-const { connectDB } = require("./config/db");
-const app = require("./app")
+const { OAuth2Client } = require("google-auth-library");
+const mongoose = require('mongoose');
+const dotenv = require("dotenv").config();
+const app = require("./app");
 
-const PORT = process.env.PORT;
-const MONGO_URI = process.env.MONGODB_URI;
 
-app.get("/sth", (req, res) => {
-  res.send("You are connected.");
+const PORT = process.env.PORT || 50001;
+
+// Google OAuth client
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// MongoDB connection
+const dbName = 'when3meet'
+mongoose.connect(process.env.MONGODB_URI, {
+  dbName: dbName, // Explicitly specify the database name
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => {
+  console.log(`Connected to MongoDB; Database: ${dbName}`);
+})
+.catch((error) => {
+  console.error("MongoDB connection error:", error);
+  process.exit(1);
 });
 
-connectDB(MONGO_URI);
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server listening at http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT}`);
 });

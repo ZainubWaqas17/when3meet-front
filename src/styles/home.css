@@ -1,0 +1,159 @@
+:root {
+  --purple: #a46bae;
+  --purple-dark: #8a5797;
+  --bg: #fafafa;
+  --text: #1a1a1a;
+  --muted: #6b7280;
+  --card-bg: #fff;
+  --border: #e5e7eb;
+  --radius: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.home {
+  margin: 0;
+  font-family: "Inter", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  padding: 40px 16px 100px;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.bottom-flowers {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100vw;
+  height: 520px;
+  object-fit: cover;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+  filter: brightness(1.15) contrast(0.95) saturate(0.9);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%);
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 1) 75%, rgba(0, 0, 0, 0) 100%);
+}
+
+@media (max-width: 768px) {
+  .bottom-flowers {
+    opacity: 0.8;
+    filter: brightness(1.2);
+  }
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.header img.logo {
+  width: 65px;
+  height: 65px;
+  border-radius: 12px;
+  background: transparent;
+  mix-blend-mode: multiply;
+  image-rendering: -webkit-optimize-contrast;
+}
+
+.header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--purple-dark);
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.create-btn {
+  background: var(--purple);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  padding: 14px 28px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 4px 10px rgba(164, 107, 174, 0.25);
+  margin-bottom: 26px;
+}
+
+.create-btn:hover {
+  background: var(--purple-dark);
+  transform: translateY(-2px);
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--muted);
+  font-size: 15px;
+  margin-top: 20px;
+}
+
+.meetings-container {
+  width: min(800px, 95%);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.meeting-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.meeting-card:hover {
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.meeting-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+
+.meeting-dates {
+  font-size: 14px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.view-btn {
+  background: var(--purple);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.view-btn:hover {
+  background: var(--purple-dark);
+}

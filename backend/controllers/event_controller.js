@@ -1,14 +1,29 @@
 // controllers/eventController.js
-const Event = require('../db_schema/event_model');
-const Availability = require('../db_schema/availability_model');
+const Event = require('../models/event_model');
+const Availability = require('../models/availability_model');
 
 exports.createEvent = async (req, res) => {
   try {
-    const { title, description, creator, window, participants = [] } = req.body;
+    const { 
+      title, 
+      description, 
+      creator, 
+      window, 
+      participants = [],
+      startTime,
+      endTime,
+      selectedDays,
+      month,
+      year,
+      dateRange
+    } = req.body;
 
     if (!window?.start || !window?.end) {
       return res.status(400).json({ error: 'window.start and window.end are required' });
     }
+
+    // Generate secure admin token
+    const adminToken = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
 
     const event = await Event.create({
       title,
@@ -16,9 +31,21 @@ exports.createEvent = async (req, res) => {
       creator,
       window,
       participants,
+      startTime,
+      endTime,
+      selectedDays,
+      month,
+      year,
+      dateRange,
+      adminToken,
+      isPublic: true
     });
 
-    res.status(201).json(event);
+    res.status(201).json({
+      success: true,
+      event,
+      shareableLink: `/event/${event._id}`
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -39,11 +66,44 @@ exports.listEvents = async (req, res) => {
 
 exports.getEvent = async (req, res) => {
   try {
-    const event = await Event.findById(req.params.eventId);
+    const event = await Event.findById(req.params.eventId)
+      .populate('creator', 'userName email');
     if (!event) return res.status(404).json({ error: 'Event not found' });
     res.json(event);
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+// Public endpoint - no auth required
+exports.getPublicEvent = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId)
+      .populate('creator', 'userName email');
+    
+    if (!event) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Event not found' 
+      });
+    }
+
+    if (!event.isPublic) {
+      return res.status(403).json({ 
+        success: false,
+        error: 'This event is private' 
+      });
+    }
+
+    res.json({
+      success: true,
+      event
+    });
+  } catch (err) {
+    res.status(400).json({ 
+      success: false,
+      error: err.message 
+    });
   }
 };
 
@@ -83,5 +143,57 @@ exports.deleteEvent = async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+};
+
+// ADD THIS METHOD
+exports.finalizeMeeting = async (req, res) => {
+  try {
+    const { determinedTime } = req.body;
+    const event = await Event.findById(req.params.eventId);
+    
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // Validate determinedTime is within window
+    const chosenTime = new Date(determinedTime);
+    if (chosenTime < event.window.start || chosenTime > event.window.end) {
+      return res.status(400).json({ 
+        error: 'Determined time must be within event window' 
+      });
+    }
+
+    event.determinedTime = determinedTime;
+    event.status = 'finalized';
+    await event.save();
+
+    res.json(event);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+};
+
+// Get complete meeting summary
+exports.getMeetingSummary = async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.eventId)
+      .populate('creator', 'userName email')
+      .populate('participants.user', 'userName email');
+    
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    const availabilities = await Availability.find({ eventId: event._id })
+      .populate('userId', 'userName email');
+
+    res.json({
+      event,
+      availabilities,
+      totalResponses: availabilities.length
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 };

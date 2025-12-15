@@ -1,31 +1,35 @@
 // controllers/availabilityController.js
-const Event = require('../db_schema/event_model');
-const Availability = require('../db_schema/availability_model');
+const Event = require('../models/event_model');
+const Availability = require('../models/availability_model');
 
 exports.upsertAvailability = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const { email, slots = [], note } = req.body;
+    const { userId, slots = [], timeZone } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'userId is required' });
+    }
 
     const event = await Event.findById(eventId);
     if (!event) return res.status(404).json({ error: 'Event not found' });
 
-    // Validate all slots within event window
-    const ok = slots.every(s => new Date(s.start) >= event.window.start && new Date(s.end) <= event.window.end && new Date(s.start) < new Date(s.end));
-    if (!ok) return res.status(400).json({ error: 'All availability slots must be within the event window and start < end' });
-
+    // Use findOneAndUpdate with upsert to create or update
     const availability = await Availability.findOneAndUpdate(
-      { eventId, email: email.toLowerCase().trim() },
-      { $set: { slots, note } },
-      { upsert: true, new: true, runValidators: true }
+      { eventId, userId },
+      { eventId, userId, slots, timeZone },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.status(200).json(availability);
+    // Populate after update
+    await availability.populate('userId', 'userName email');
+
+    res.status(200).json({
+      success: true,
+      availability
+    });
   } catch (err) {
-    // Handle unique index errors nicely
-    if (err.code === 11000) {
-      return res.status(409).json({ error: 'Availability already exists for this email and event' });
-    }
+    console.error('Upsert availability error:', err);
     res.status(400).json({ error: err.message });
   }
 };
@@ -33,8 +37,13 @@ exports.upsertAvailability = async (req, res) => {
 exports.listAvailabilitiesForEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const rows = await Availability.find({ eventId }).sort({ createdAt: -1 });
-    res.json(rows);
+    const rows = await Availability.find({ eventId })
+      .populate('userId', 'userName email')
+      .sort({ createdAt: -1 });
+    res.json({
+      success: true,
+      availabilities: rows
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
